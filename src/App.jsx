@@ -6,8 +6,8 @@ import {
 } from "lucide-react";
 import defaultGroupPhoto from "./assets/04_Jungschar-2012.jpg";
 
-const TODAY = "2026-10-15";
-const APP_VERSION = "2.0.0-dev";
+const TODAY = new Date().toLocaleDateString("en-CA");
+const APP_VERSION = "2.0.1-dev";
 const APP_BUILD_DATE = "23.10.2026";
 const STORAGE_KEYS = {
   people: "jungschar.people.v02",
@@ -905,7 +905,7 @@ export default function App(){
   const [editingPersonId,setEditingPersonId]=useState(null);
   const [reportScope,setReportScope]=useState("window");
   const [dataUpdatedAt,setDataUpdatedAt]=useState(() => readStored(STORAGE_KEYS.dataUpdatedAt, null));
-  const [syncStatus]=useState("local");
+  const [syncStatus]=useState("prepared");
   const dataStandText=dataUpdatedAt?new Date(dataUpdatedAt).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"Noch kein gespeicherter Datenstand";
 
   useEffect(() => {
@@ -1073,9 +1073,9 @@ export default function App(){
   const toggleFlag=(id,key)=>{markDataChanged();setPeople(old=>old.map(p=>p.id===id?{...p,[key]:p[key]?"":"X"}:p));};
   const updatePerson=(id,key,value)=>{markDataChanged();setPeople(old=>old.map(p=>p.id===id?{...p,[key]:value}:p));};
   const saveNew=()=>{markDataChanged();setPeople(old=>sortPeople([...old,{...draft,id:Math.max(0,...old.map(p=>p.id))+1}]));setDraft(blank);setAdding(false);};
-  const deletePerson=person=>{if(!window.confirm(`${person.first} ${person.last} wirklich löschen? Die Person wird auch aus allen Anwesenheitslisten entfernt.`))return;setPeople(old=>old.filter(p=>p.id!==person.id));setAttendance(old=>Object.fromEntries(Object.entries(old).map(([eventDate,ids])=>[eventDate,ids.filter(id=>id!==person.id)])));};
-  const uploadPhoto=e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>setPhoto(String(reader.result));reader.readAsDataURL(file);};
-  const resetPhoto=()=>{setPhoto("");};
+  const deletePerson=person=>{if(!window.confirm(`${person.first} ${person.last} wirklich löschen? Die Person wird auch aus allen Anwesenheitslisten entfernt.`))return;markDataChanged();setPeople(old=>old.filter(p=>p.id!==person.id));setAttendance(old=>Object.fromEntries(Object.entries(old).map(([eventDate,ids])=>[eventDate,ids.filter(id=>id!==person.id)])));};
+  const uploadPhoto=e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{markDataChanged();setPhoto(String(reader.result));};reader.readAsDataURL(file);};
+  const resetPhoto=()=>{markDataChanged();setPhoto("");};
   const scheduleFor = eventDate => schedule.find(item=>item.date===eventDate) || {date:eventDate,content:"",responsible:""};
   const updateSchedule = (eventDate,key,value) => {markDataChanged();setSchedule(old => {
     const exists=old.some(item=>item.date===eventDate);
@@ -1100,6 +1100,8 @@ export default function App(){
   };
   const deleteEvent = eventDate => {
     if(!window.confirm(`${fmt(eventDate)} wirklich löschen? Der Termin und seine Anwesenheitsdaten werden entfernt.`)) return;
+    if(eventDate<currentDate&&!window.confirm("Sicherheitsabfrage: Es handelt sich um einen vergangenen Termin. Wirklich endgültig löschen?")) return;
+    markDataChanged();
     const remainingEvents=events.filter(event=>event.date!==eventDate);
     setSchedule(old=>old.filter(item=>item.date!==eventDate));
     setAttendance(old=>Object.fromEntries(Object.entries(old).filter(([storedDate])=>storedDate!==eventDate)));
@@ -1136,8 +1138,8 @@ export default function App(){
     }else setSwipeOffsets(old=>({...old,[eventDate]:0}));
   };
   const updatePreacherAssignment=(eventDate,changes)=>{markDataChanged();setPreachers(old=>({...old,[eventDate]:{askedName:"",preached:false,...old[eventDate],...changes}}));};
-  const addPreacher=()=>{const name=newPreacherName.trim();if(!name)return;if(preacherRoster.some(item=>item.toLowerCase()===name.toLowerCase())){window.alert("Diese Person ist bereits in der Predigerliste.");return;}setPreacherRoster(old=>[...old,name].sort((a,b)=>a.localeCompare(b,"de")));setNewPreacherName("");};
-  const removePreacher=name=>{if(!window.confirm(`${name} wirklich aus der Predigerliste entfernen? Bereits gespeicherte Termine bleiben erhalten.`))return;setPreacherRoster(old=>old.filter(item=>item!==name));};
+  const addPreacher=()=>{const name=newPreacherName.trim();if(!name)return;markDataChanged();if(preacherRoster.some(item=>item.toLowerCase()===name.toLowerCase())){window.alert("Diese Person ist bereits in der Predigerliste.");return;}setPreacherRoster(old=>[...old,name].sort((a,b)=>a.localeCompare(b,"de")));setNewPreacherName("");};
+  const removePreacher=name=>{if(!window.confirm(`${name} wirklich aus der Predigerliste entfernen? Bereits gespeicherte Termine bleiben erhalten.`))return;markDataChanged();setPreacherRoster(old=>old.filter(item=>item!==name));};
   const isVisitContent = content => /alten[- ]?\/?\s*und\s*krankenbesuch|alten-\s*und\s*krankenbesuch|altenbesuch|krankenbesuch/i.test(content);
   const extractVisited = content => {
     const bracketMatch=content.match(/\(([^)]+)\)/);
@@ -1181,6 +1183,36 @@ export default function App(){
       target?.scrollIntoView({behavior:"smooth",block:"start"});
     },80);
   };
+  const buildAppData=()=>({
+    app:"Jungschar 2012",
+    formatVersion:2,
+    appVersion:APP_VERSION,
+    updatedAt:dataUpdatedAt||new Date().toISOString(),
+    people,
+    attendance,
+    confirmedAttendance,
+    schedule,
+    preachers,
+    preacherRoster,
+    leaderBirthdays,
+    nextEventNotes,
+    nextEventNoteDone,
+    photo
+  });
+  const applyAppData=data=>{
+    if(!data||data.app!=="Jungschar 2012") throw new Error("Ungültige App-Daten");
+    if(Array.isArray(data.people)) setPeople(sortPeople(data.people));
+    if(data.attendance&&typeof data.attendance==="object") setAttendance(data.attendance);
+    if(Array.isArray(data.confirmedAttendance)) setConfirmedAttendance(data.confirmedAttendance);
+    if(Array.isArray(data.schedule)) setSchedule([...data.schedule].sort((a,b)=>a.date.localeCompare(b.date)));
+    if(data.preachers&&typeof data.preachers==="object") setPreachers(data.preachers);
+    if(Array.isArray(data.preacherRoster)) setPreacherRoster(data.preacherRoster);
+    if(data.leaderBirthdays&&typeof data.leaderBirthdays==="object") setLeaderBirthdays(data.leaderBirthdays);
+    if(data.nextEventNotes&&typeof data.nextEventNotes==="object") setNextEventNotes(data.nextEventNotes);
+    if(data.nextEventNoteDone&&typeof data.nextEventNoteDone==="object") setNextEventNoteDone(data.nextEventNoteDone);
+    if(typeof data.photo==="string") setPhoto(data.photo);
+    setDataUpdatedAt(data.updatedAt||new Date().toISOString());
+  };
   const addDays=(value,days)=>{const d=new Date(`${value}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
   const schoolYearBounds=()=>{const [startShort]=currentSchoolYear.split("/");const century=String(new Date(`${currentDate}T12:00:00Z`).getUTCFullYear()).slice(0,2);const startYear=Number(`${century}${startShort}`);return {start:`${startYear}-08-01`,end:`${startYear+1}-07-31`};};
   const reportEvents=()=>{
@@ -1201,12 +1233,7 @@ export default function App(){
   const exportExcelReport=()=>{const blob=new Blob([reportHtml()],{type:"application/vnd.ms-excel;charset=utf-8"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`Jungschar-Bericht-${currentDate}.xls`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   const exportPdfReport=()=>{const win=window.open("","_blank");if(!win){window.alert("Bitte Pop-ups für diese Seite erlauben.");return;}win.document.open();win.document.write(reportHtml());win.document.close();win.onload=()=>{win.focus();win.print();};};
   const exportBackup=()=>{
-    const storage={};
-    for(let index=0;index<localStorage.length;index+=1){
-      const key=localStorage.key(index);
-      if(key?.startsWith("jungschar.")) storage[key]=localStorage.getItem(key);
-    }
-    const backup={app:"Jungschar 2012",formatVersion:1,exportedAt:new Date().toISOString(),storage};
+    const backup=buildAppData();
     const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const link=document.createElement("a");
@@ -1225,14 +1252,20 @@ export default function App(){
     reader.onload=()=>{
       try{
         const backup=JSON.parse(String(reader.result));
+        const backupDate=backup.updatedAt||backup.exportedAt;
+        const displayDate=backupDate?new Date(backupDate).toLocaleString("de-DE"):"unbekannten Zeitpunkt";
+        if(!window.confirm(`Backup vom ${displayDate} wiederherstellen? Die aktuellen lokalen App-Daten werden ersetzt.`)) return;
+        if(backup.formatVersion===2){
+          applyAppData(backup);
+          window.alert("Backup wurde wiederhergestellt.");
+          return;
+        }
         if(backup?.app!=="Jungschar 2012"||!backup.storage||typeof backup.storage!=="object") throw new Error("Ungültiges Backup");
         const keys=Object.keys(backup.storage).filter(key=>key.startsWith("jungschar."));
         if(!keys.length) throw new Error("Keine App-Daten gefunden");
-        const backupDate=backup.exportedAt?new Date(backup.exportedAt).toLocaleString("de-DE"):"unbekannten Zeitpunkt";
-        if(!window.confirm(`Backup vom ${backupDate} wiederherstellen? Die aktuellen lokalen App-Daten werden ersetzt.`)) return;
         Object.keys(localStorage).filter(key=>key.startsWith("jungschar.")).forEach(key=>localStorage.removeItem(key));
         keys.forEach(key=>{if(typeof backup.storage[key]==="string") localStorage.setItem(key,backup.storage[key]);});
-        window.alert("Backup wurde wiederhergestellt. Die App wird jetzt neu geladen.");
+        window.alert("Älteres Backup wurde wiederhergestellt. Die App wird jetzt neu geladen.");
         window.location.reload();
       }catch{
         window.alert("Diese Datei ist kein gültiges Jungschar-App-Backup.");
@@ -1255,10 +1288,10 @@ export default function App(){
       }
     `}</style>
     <main className="mx-auto max-w-5xl space-y-4 p-4">
-      {view!=="home"&&<header><p className="text-xs font-black uppercase tracking-[.2em] text-blue-600">Jungschar-App</p><h1 className="text-3xl font-black">Jungschar 2012</h1><p className="text-sm text-slate-500">Version {APP_VERSION} · {syncStatus==="local"?"lokaler Datenstand":"synchronisiert"} · {dataStandText}</p></header>}
+      {view!=="home"&&<header><p className="text-xs font-black uppercase tracking-[.2em] text-blue-600">Jungschar-App</p><h1 className="text-3xl font-black">Jungschar 2012</h1><p className="text-sm text-slate-500">Version {APP_VERSION} · {syncStatus==="synced"?"synchronisiert":"Cloud vorbereitet · lokal gespeichert"} · {dataStandText}</p></header>}
 
       {view==="home"&&<>
-        <section className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cloud-V2</p><p className="truncate text-xs font-bold text-slate-600">Version {APP_VERSION} · Stand {APP_BUILD_DATE}</p></div><div className="shrink-0 text-right"><div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-[10px] font-black text-amber-800"><span className="h-2 w-2 rounded-full bg-amber-500"/>{syncStatus==="local"?"Lokal gespeichert":"Synchronisiert"}</div><p className="mt-1 text-[9px] font-bold text-slate-400">Daten: {dataStandText}</p></div></section>
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cloud-V2</p><p className="truncate text-xs font-bold text-slate-600">Version {APP_VERSION} · Stand {APP_BUILD_DATE}</p></div><div className="shrink-0 text-right"><div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-[10px] font-black text-amber-800"><span className="h-2 w-2 rounded-full bg-amber-500"/>{syncStatus==="synced"?"Synchronisiert":"Cloud vorbereitet · lokal"}</div><p className="mt-1 text-[9px] font-bold text-slate-400">Daten: {dataStandText}</p></div></section>
         <section className="relative h-[430px] overflow-hidden rounded-[34px] bg-slate-900 shadow-xl sm:h-[520px]">
           <img src={photo||defaultGroupPhoto} alt="Gruppenbild der Jungschar 2012" className="h-full w-full object-cover object-center"/>
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-transparent to-slate-950/90"/>
