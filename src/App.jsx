@@ -5,10 +5,20 @@ import {
   Mail, Pencil, Plus, Search, ShieldCheck, Trash2, Undo2, Upload, Users, X
 } from "lucide-react";
 import defaultGroupPhoto from "./assets/04_Jungschar-2012.jpg";
+import { db } from "./firebase";
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 
-const TODAY = new Date().toLocaleDateString("en-CA");
-const APP_VERSION = "2.0.1-dev";
-const APP_BUILD_DATE = "23.10.2026";
+const TODAY = "2026-10-15";
+const FIRESTORE_COLLECTION = "jungscharApps";
+const FIRESTORE_GROUP_ID = "jungschar-2012";
+const FIRESTORE_STATE_COLLECTION = "state";
+const firestoreStateRef = key => doc(
+  db,
+  FIRESTORE_COLLECTION,
+  FIRESTORE_GROUP_ID,
+  FIRESTORE_STATE_COLLECTION,
+  key
+);
 const STORAGE_KEYS = {
   people: "jungschar.people.v02",
   attendance: "jungschar.attendance.v02",
@@ -21,8 +31,7 @@ const STORAGE_KEYS = {
   nextEventNotes: "jungschar.nextEventNotes.v01",
   nextEventNoteDone: "jungschar.nextEventNoteDone.v01",
   homeNoteOpen: "jungschar.homeNoteOpen.v01",
-  eventNotesOpen: "jungschar.eventNotesOpen.v01",
-  dataUpdatedAt: "jungschar.dataUpdatedAt.v01"
+  eventNotesOpen: "jungschar.eventNotesOpen.v01"
 };
 
 const readStored = (key, fallback) => {
@@ -203,600 +212,18 @@ const birthdayByName = {
 };
 const leaderBirthdaySeed = {"Stephan Domanski":"01.03","Julien Vogel":"26.03","Samuel Kliwer":"30.08","Davis Kliwer":"21.11"};
 
-const peopleSeed = [
-  [1,"Akulenko","Mike","X","Sa","I",""],[2,"Biegler","Calvin","","St","I",""],
-  [3,"Blackshear","Amaya","X","St","",""],[4,"Brant","Melia","X","J","I",""],
-  [5,"Domanski","Celine","","Sa","",""],[6,"Domanski","Kerstin","X","J","I",""],
-  [7,"Fast","Tobias","X","St","I",""],[8,"Firus","Lajana","X","Sa","",""],
-  [9,"Kalistratov","Jana","X","J","",""],[10,"Kalistratov","Liana","X","Sa","",""],
-  [11,"Kindra","Ksenia","X","St","",""],[12,"Kliwer","Fynn","X","St","I",""],
-  [13,"Kopp","Hannah","X","J","",""],[14,"Krom","Viktoria","X","J","I",""],
-  [15,"Marchuk","Roman","","Sa","I",""],[16,"Marchuk","Vitaly","X","St","",""],
-  [17,"Metzler","Alica","X","Sa","I",""],[18,"Negura","Jannik","X","J","I",""],
-  [19,"Rudyk","Yevheniia","X","Sa","I",""],[20,"Schefer","Jamian","","J","",""],
-  [21,"Scherer","Amelie","X","St","",""],[22,"Schill","Victoria","","Sa","",""],
-  [23,"Schwarz","Lauryn","X","Sa","",""],[24,"Shyrai","Arsen","X","Sa","",""],
-  [25,"Sippel","Daniel","","J","",""],[26,"Stiller","Ina","","Sa","I",""],
-  [27,"Vlasiuk","Lisa","","St","",""],[28,"Vogel","Daniel","X","St","I",""],
-  [29,"Wall","Nick","X","J","",""],[30,"Wedernikow","Sophia","X","J","",""]
-].map(([id,last,first,hg,v,hj1,hj2]) => {
-  const key=`${last} ${first}`;
-  const aliases={"Negura Jannik":"Negura Janick","Marchuk Vitaly":"Marchuk Vitali"};
-  return {id,last,first,hg,v:personDetailsSeed[id]?.v||v,hj1,hj2,duty:personDetailsSeed[id]?.duty||"",instrument:personDetailsSeed[id]?.instrument||"",birthday:birthdayByName[aliases[key]||key]||""};
-});
+const peopleSeed = [{"id":1,"last":"Akulenko","first":"Mike","hg":"X","v":"Sa","hj1":"I","hj2":"","duty":"","instrument":"Klav., Git., Pos., Akk.","birthday":"27.04"},{"id":2,"last":"Biegler","first":"Calvin","hg":"","v":"St","hj1":"I","hj2":"","duty":"Stühle","instrument":"Gitarre","birthday":"25.08"},{"id":3,"last":"Blackshear","first":"Amaya","hg":"X","v":"St","hj1":"","hj2":"","duty":"Kaffee&Kuchen","instrument":"Klavier, Cello","birthday":"04.09"},{"id":4,"last":"Brant","first":"Melia","hg":"X","v":"J","hj1":"I","hj2":"","duty":"Salate","instrument":"Klavier","birthday":"23.03"},{"id":5,"last":"Domanski","first":"Celine","hg":"","v":"Sa","hj1":"","hj2":"","duty":"","instrument":"Klavier","birthday":"09.06"},{"id":6,"last":"Domanski","first":"Kerstin","hg":"X","v":"J","hj1":"I","hj2":"","duty":"Geburtstagskarten","instrument":"Harfe, Mandoline","birthday":"06.03"},{"id":7,"last":"Fast","first":"Tobias","hg":"X","v":"St","hj1":"I","hj2":"","duty":"Liederbücher","instrument":"Trompete","birthday":"19.08"},{"id":8,"last":"Firus","first":"Lajana","hg":"X","v":"Sa","hj1":"","hj2":"","duty":"Kaffee&Kuchen","instrument":"Klavier, Querflöte","birthday":"22.07"},{"id":9,"last":"Kalistratov","first":"Jana","hg":"X","v":"J","hj1":"","hj2":"","duty":"Geburtstagskarten","instrument":"Mandoline","birthday":"13.03"},{"id":10,"last":"Kalistratov","first":"Liana","hg":"X","v":"Sa","hj1":"","hj2":"","duty":"Anwesenheitsliste","instrument":"Mandoline, Klavier","birthday":"13.03"},{"id":11,"last":"Kindra","first":"Ksenia","hg":"X","v":"St","hj1":"","hj2":"","duty":"","instrument":"","birthday":""},{"id":12,"last":"Kliwer","first":"Fynn","hg":"X","v":"St","hj1":"I","hj2":"","duty":"","instrument":"Klavier, Akkordeon","birthday":"26.11"},{"id":13,"last":"Kopp","first":"Hannah","hg":"X","v":"J","hj1":"","hj2":"","duty":"Gebetsliste","instrument":"Klavier","birthday":"19.10"},{"id":14,"last":"Krom","first":"Viktoria","hg":"X","v":"J","hj1":"I","hj2":"","duty":"","instrument":"Akkordeon","birthday":"22.03"},{"id":15,"last":"Marchuk","first":"Roman","hg":"","v":"Sa","hj1":"I","hj2":"","duty":"","instrument":"","birthday":"02.12"},{"id":16,"last":"Marchuk","first":"Vitaly","hg":"X","v":"St","hj1":"","hj2":"","duty":"Stühle","instrument":"Klavier","birthday":"16.04"},{"id":17,"last":"Metzler","first":"Alica","hg":"X","v":"Sa","hj1":"I","hj2":"","duty":"Programm","instrument":"Querflöte, Klavier","birthday":"04.05"},{"id":18,"last":"Negura","first":"Jannik","hg":"X","v":"J","hj1":"I","hj2":"","duty":"Liederbücher","instrument":"Klavier, Geige","birthday":"09.01"},{"id":19,"last":"Rudyk","first":"Yevheniia","hg":"X","v":"Sa","hj1":"I","hj2":"","duty":"","instrument":"","birthday":"20.09"},{"id":20,"last":"Schefer","first":"Jamian","hg":"","v":"J","hj1":"","hj2":"","duty":"","instrument":"","birthday":"15.02"},{"id":21,"last":"Scherer","first":"Amelie","hg":"X","v":"St","hj1":"","hj2":"","duty":"","instrument":"","birthday":"16.09"},{"id":22,"last":"Schill","first":"Victoria","hg":"","v":"Sa","hj1":"","hj2":"","duty":"","instrument":"","birthday":""},{"id":23,"last":"Schwarz","first":"Lauryn","hg":"X","v":"Sa","hj1":"","hj2":"","duty":"","instrument":"Klavier","birthday":"24.10"},{"id":24,"last":"Shyrai","first":"Arsen","hg":"X","v":"Sa","hj1":"","hj2":"","duty":"","instrument":"Geige","birthday":"15.02"},{"id":25,"last":"Sippel","first":"Daniel","hg":"","v":"J","hj1":"","hj2":"","duty":"","instrument":"","birthday":"09.09"},{"id":26,"last":"Stiller","first":"Ina","hg":"","v":"Sa","hj1":"I","hj2":"","duty":"Salate, Fragebox","instrument":"Klavier","birthday":"07.03"},{"id":27,"last":"Vlasiuk","first":"Lisa","hg":"","v":"St","hj1":"","hj2":"","duty":"","instrument":"","birthday":""},{"id":28,"last":"Vogel","first":"Daniel","hg":"X","v":"St","hj1":"I","hj2":"","duty":"","instrument":"Klav., Tromp., Git.","birthday":"04.05"},{"id":29,"last":"Wall","first":"Nick","hg":"X","v":"J","hj1":"","hj2":"","duty":"Stühle","instrument":"","birthday":"29.11"},{"id":30,"last":"Wedernikow","first":"Sophia","hg":"X","v":"J","hj1":"","hj2":"","duty":"Anwesenh., Fragebox","instrument":"Geige, Klavier","birthday":"13.03"}];
 
-const scheduleSeed = [
-  {"date":"2024-09-16","content":"Organisatorisches","responsible":""},
-  {"date":"2024-09-23","content":"Thema: Gebet","responsible":"Alle"},
-  {"date":"2024-09-30","content":"Thema: Gebet","responsible":"Alle"},
-  {"date":"2024-10-07","content":"Thema: Schöpfung Tag 1-4","responsible":"Stephan"},
-  {"date":"2024-10-21","content":"Programmaufteilung + Probe","responsible":""},
-  {"date":"2024-10-28","content":"Programmvorbereitung","responsible":""},
-  {"date":"2024-11-04","content":"Thema: Schöpfung Tag 5-7, Programmvorbereitung","responsible":"Stephan"},
-  {"date":"2024-11-11","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2024-11-18","content":"Programmvorbereitung","responsible":""},
-  {"date":"2025-01-20","content":"Thema: Vergebung","responsible":""},
-  {"date":"2025-01-27","content":"Dankgottesdienst + Probe f. Altenbesuch","responsible":""},
-  {"date":"2025-02-01","content":"Alten- und Krankenbesuch: Koschmann und Fedja Kotschetkow","responsible":""},
-  {"date":"2025-02-03","content":"Gebetsstunde","responsible":""},
-  {"date":"2025-02-10","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-02-17","content":"Thema: Jesus Christus","responsible":"Stephan"},
-  {"date":"2025-02-24","content":"Thema: Von den Verheißungen","responsible":"Samuel"},
-  {"date":"2025-03-03","content":"Thema: Glaube","responsible":"Julien"},
-  {"date":"2025-03-10","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-03-17","content":"Krankenbesuch: Diana Wedernikow","responsible":""},
-  {"date":"2025-03-24","content":"Gemeinschaft auf Parkplatz","responsible":""},
-  {"date":"2025-03-31","content":"Thema: Bibel","responsible":"Stephan"},
-  {"date":"2025-04-07","content":"Thema: Mobbing","responsible":""},
-  {"date":"2025-04-28","content":"Programmvorbereitung","responsible":""},
-  {"date":"2025-05-05","content":"Programmvorbereitung","responsible":""},
-  {"date":"2025-05-19","content":"Vortrag Indien","responsible":""},
-  {"date":"2025-05-26","content":"Thema: Der verlorene Sohn","responsible":"Stephan"},
-  {"date":"2025-08-25","content":"Allgemeines, Kaffe&Kuchen, Offene Runde","responsible":""},
-  {"date":"2025-09-01","content":"Thema: Vertrauen","responsible":"Julien"},
-  {"date":"2025-09-08","content":"Alten- und Krankenbesuch (Firus Lydia und Anton Müller)","responsible":""},
-  {"date":"2025-09-15","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-09-22","content":"Thema: Allgemeine Glaubensgrundsätze 1","responsible":"Stephan"},
-  {"date":"2025-09-29","content":"Thema: Christenverfolgung","responsible":"Justin Henkel"},
-  {"date":"2025-10-06","content":"Thema: Allgemeine Glaubensgrundsätze 2","responsible":"Stephan"},
-  {"date":"2025-10-13","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-10-20","content":"Gruppengebetsstunde (+ kurzes Thema: Liebe 1. Kor. 13)","responsible":"Samuel"},
-  {"date":"2025-10-27","content":"Thema: Sündenbekenntnis","responsible":"Alex Gornus"},
-  {"date":"2025-11-03","content":"Thema: Sei wie die Ameise","responsible":"Julien"},
-  {"date":"2025-11-10","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-11-17","content":"Alten- und Krankenbesuch (Brant und Schneider)","responsible":""},
-  {"date":"2025-11-24","content":"Thema: Heiliger Geist","responsible":"Paul Domanski"},
-  {"date":"2025-12-01","content":"Besprechung Weihnachtsfeier","responsible":""},
-  {"date":"2025-12-08","content":"Vorbereitung für Weihnachtsfeier","responsible":""},
-  {"date":"2025-12-15","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2025-12-22","content":"- Ferien -","responsible":""},
-  {"date":"2025-12-29","content":"- Ferien -","responsible":""},
-  {"date":"2026-01-05","content":"Gebetswoche","responsible":""},
-  {"date":"2026-01-12","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-01-19","content":"Thema: Frucht des Geistes","responsible":"Stephan"},
-  {"date":"2026-01-26","content":"Thema: Mobbing","responsible":"Matze Isaak"},
-  {"date":"2026-02-02","content":"Zeugnisse + Test zu Thema \"Mobbing\" Thema: Der breite und der schmale Weg","responsible":"Julien"},
-  {"date":"2026-02-09","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-02-16","content":"Ausflug Megges","responsible":""},
-  {"date":"2026-02-23","content":"Thema: Medien","responsible":"Stephan"},
-  {"date":"2026-03-02","content":"Vorbereitung für Besuch im Altersheim Homburg + Thema: Die Zunge","responsible":"Samuel"},
-  {"date":"2026-03-09","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-03-16","content":"Einteilung für Vortrag am 12.04.26 + Thema: Schätze, was du hast","responsible":"Julien"},
-  {"date":"2026-03-23","content":"Probe für Vortrag am 12.04.26","responsible":""},
-  {"date":"2026-03-30","content":"Wiese","responsible":""},
-  {"date":"2026-04-06","content":"- Passahmontag -","responsible":""},
-  {"date":"2026-04-12","content":"Vortrag im Gottesdienst","responsible":""},
-  {"date":"2026-04-13","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-04-20","content":"Thema: Und die anderen Religionen","responsible":"Stephan"},
-  {"date":"2026-04-27","content":"Thema: Endzeit","responsible":"Paul Domanski"},
-  {"date":"2026-05-01","content":"Fahrradtour / Wiese","responsible":""},
-  {"date":"2026-05-04","content":"Alten-/Krankenbesuch (Valentina Wiens)","responsible":""},
-  {"date":"2026-05-11","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-05-18","content":"Thema: Jona / Missionsbefehl","responsible":"Julien"},
-  {"date":"2026-05-25","content":"- Pfingstmontag -","responsible":""},
-  {"date":"2026-06-01","content":"Thema: Haus auf Sand oder Felsen bauen","responsible":"Samuel"},
-  {"date":"2026-06-08","content":"Thema: Bekehrung","responsible":"Keven Akulenko"},
-  {"date":"2026-06-15","content":"Jungschargebetsstunde","responsible":""},
-  {"date":"2026-06-22","content":"Jahresabschluss, Kaffee&Kuchen, Interne Fragen, Besprechung Ausflüge","responsible":""},
-  {"date":"2026-06-26","content":"Ausflug","responsible":""},
-  {"date":"2026-06-29","content":"- Sommerferien -","responsible":""},
-  {"date":"2026-07-06","content":"- Sommerferien -","responsible":""},
-  {"date":"2026-07-13","content":"- Sommerferien -","responsible":""},
-  {"date":"2026-07-20","content":"- Sommerferien -","responsible":""},
-  {"date":"2026-07-27","content":"- Sommerferien -","responsible":""},
-  {"date":"2026-08-03","content":"- Sommerferien -","responsible":""},
-  {
-    "date": "2026-08-10",
-    "content": "Jungschargebetsstunde",
-    "responsible": ""
-  },
-  {
-    "date": "2026-08-17",
-    "content": "Speisesaal + Wiese",
-    "responsible": ""
-  },
-  {
-    "date": "2026-08-24",
-    "content": "Thema: Gebt dem Teufel keinen Raum",
-    "responsible": "Samuel"
-  },
-  {
-    "date": "2026-08-29",
-    "content": "Fahrradtour / Wiese",
-    "responsible": ""
-  },
-  {
-    "date": "2026-08-31",
-    "content": "Thema: Bin ich ein Gefäß?",
-    "responsible": "Julien"
-  },
-  {
-    "date": "2026-09-07",
-    "content": "Thema: Schmuck",
-    "responsible": "Stephan"
-  },
-  {
-    "date": "2026-09-14",
-    "content": "Jungschargebetsstunde",
-    "responsible": ""
-  },
-  {
-    "date": "2026-09-21",
-    "content": "- Ausfall -",
-    "responsible": ""
-  },
-  {
-    "date": "2026-09-27",
-    "content": "Gemeinsame Jungscharstunde mit allen. Thema: Äthiopien",
-    "responsible": "Justin Henkel"
-  },
-  {
-    "date": "2026-10-05",
-    "content": "Alten- und Krankenbesuch (Schwester Lena Schäfer)",
-    "responsible": ""
-  },
-  {
-    "date": "2026-10-12",
-    "content": "Jungschargebetsstunde",
-    "responsible": ""
-  },
-  {
-    "date": "2026-10-19",
-    "content": "Themenreihe: Auszug aus Ägypten. Abschnitt 1: Vorwort + Josef",
-    "responsible": "Stephan"
-  },
-  {
-    "date": "2026-10-26",
-    "content": "Thema: Reformationstag - Halloween",
-    "responsible": "Stephan"
-  },
-  {
-    "date": "2026-11-02",
-    "content": "Themenreihe: Auszug aus Ägypten. Abschnitt 2: Knechtschaft - 10. Plage",
-    "responsible": "Julien"
-  },
-  {
-    "date": "2026-11-09",
-    "content": "Aktion / Megges / Ausflug?",
-    "responsible": ""
-  },
-  {
-    "date": "2026-11-16",
-    "content": "Jungschargebetsstunde 2011 & 2012",
-    "responsible": ""
-  },
-  {
-    "date": "2026-11-23",
-    "content": "Vorbereitung  / Einteilung Weihnachtsfeier - Eventuell kleines Thema (Bildervergleiche Gemeinde)",
-    "responsible": "Stephan"
-  },
-  {
-    "date": "2026-11-30",
-    "content": "Themenreihe: Auszug aus Ägypten. Abschnitt 3: Durchquerung des Roten Meeres",
-    "responsible": "Samuel"
-  },
-  {
-    "date": "2026-12-07",
-    "content": "Themenreihe: Auszug aus Ägypten. Abschnitt 4: Wüste 1/2",
-    "responsible": "Julien"
-  },
-  {
-    "date": "2026-12-14",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2026-12-21",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2026-12-28",
-    "content": "- Ferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-01-04",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-01-11",
-    "content": "Themenreihe: Auszug aus Ägypten. Abschnitt 5: Wüste 2/2",
-    "responsible": "Stephan"
-  },
-  {
-    "date": "2027-01-18",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-01-25",
-    "content": "Thema: Fasching - und die Feiertage des Herrn",
-    "responsible": ""
-  },
-  {
-    "date": "2027-02-01",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-02-08",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-02-15",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-02-22",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-03-01",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-03-08",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-03-15",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-03-22",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-03-29",
-    "content": "- Passahmontag -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-04-05",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-04-12",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-04-19",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-04-26",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-05-03",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-05-10",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-05-17",
-    "content": "- Pfingstmontag -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-05-24",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-05-31",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-06-07",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-06-14",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-06-21",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-06-28",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-07-05",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-07-12",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-07-19",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-07-26",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-08-02",
-    "content": "- Sommerferien -",
-    "responsible": ""
-  },
-  {
-    "date": "2027-08-09",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-08-16",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-08-23",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-08-30",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-09-06",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-09-13",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-09-20",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-09-27",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-10-04",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-10-11",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-10-18",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-10-25",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-11-01",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-11-08",
-    "content": "Jungschargebetsstunde",
-    "responsible": ""
-  },
-  {
-    "date": "2027-11-15",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-11-22",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-11-29",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-12-06",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-12-13",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-12-20",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2027-12-27",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-01-03",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-01-10",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-01-17",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-01-24",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-01-31",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-02-07",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-02-14",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-02-21",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-02-28",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-03-06",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-03-13",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-03-20",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-03-27",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-04-03",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-04-10",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-04-17",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-04-24",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-05-01",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-05-08",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-05-15",
-    "content": "",
-    "responsible": ""
-  },
-  {
-    "date": "2028-05-22",
-    "content": "",
-    "responsible": ""
-  }
-];
+const scheduleSeed = [{"date":"2024-09-16","content":"Organisatorisches","responsible":""},{"date":"2024-09-23","content":"Thema: Gebet","responsible":"Alle"},{"date":"2024-09-30","content":"Thema: Gebet","responsible":"Alle"},{"date":"2024-10-07","content":"Thema: Schöpfung Tag 1-4","responsible":"Stephan"},{"date":"2024-10-21","content":"Programmaufteilung + Probe","responsible":""},{"date":"2024-10-28","content":"Programmvorbereitung","responsible":""},{"date":"2024-11-04","content":"Thema: Schöpfung Tag 5-7, Programmvorbereitung","responsible":"Stephan"},{"date":"2024-11-11","content":"Jungschargebetsstunde","responsible":""},{"date":"2024-11-18","content":"Programmvorbereitung","responsible":""},{"date":"2025-01-20","content":"Thema: Vergebung","responsible":""},{"date":"2025-01-27","content":"Dankgottesdienst + Probe f. Altenbesuch","responsible":""},{"date":"2025-02-01","content":"Alten- und Krankenbesuch: Koschmann und Fedja Kotschetkow","responsible":""},{"date":"2025-02-03","content":"Gebetsstunde","responsible":""},{"date":"2025-02-10","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-02-17","content":"Thema: Jesus Christus","responsible":"Stephan"},{"date":"2025-02-24","content":"Thema: Von den Verheißungen","responsible":"Samuel"},{"date":"2025-03-03","content":"Thema: Glaube","responsible":"Julien"},{"date":"2025-03-10","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-03-17","content":"Krankenbesuch: Diana Wedernikow","responsible":""},{"date":"2025-03-24","content":"Gemeinschaft auf Parkplatz","responsible":""},{"date":"2025-03-31","content":"Thema: Bibel","responsible":"Stephan"},{"date":"2025-04-07","content":"Thema: Mobbing","responsible":""},{"date":"2025-04-28","content":"Programmvorbereitung","responsible":""},{"date":"2025-05-05","content":"Programmvorbereitung","responsible":""},{"date":"2025-05-19","content":"Vortrag Indien","responsible":""},{"date":"2025-05-26","content":"Thema: Der verlorene Sohn","responsible":"Stephan"},{"date":"2025-08-25","content":"Allgemeines, Kaffe&Kuchen, Offene Runde","responsible":""},{"date":"2025-09-01","content":"Thema: Vertrauen","responsible":"Julien"},{"date":"2025-09-08","content":"Alten- und Krankenbesuch (Firus Lydia und Anton Müller)","responsible":""},{"date":"2025-09-15","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-09-22","content":"Thema: Allgemeine Glaubensgrundsätze 1","responsible":"Stephan"},{"date":"2025-09-29","content":"Thema: Christenverfolgung","responsible":"Justin Henkel"},{"date":"2025-10-06","content":"Thema: Allgemeine Glaubensgrundsätze 2","responsible":"Stephan"},{"date":"2025-10-13","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-10-20","content":"Gruppengebetsstunde (+ kurzes Thema: Liebe 1. Kor. 13)","responsible":"Samuel"},{"date":"2025-10-27","content":"Thema: Sündenbekenntnis","responsible":"Alex Gornus"},{"date":"2025-11-03","content":"Thema: Sei wie die Ameise","responsible":"Julien"},{"date":"2025-11-10","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-11-17","content":"Alten- und Krankenbesuch (Brant und Schneider)","responsible":""},{"date":"2025-11-24","content":"Thema: Heiliger Geist","responsible":"Paul Domanski"},{"date":"2025-12-01","content":"Besprechung Weihnachtsfeier","responsible":""},{"date":"2025-12-08","content":"Vorbereitung für Weihnachtsfeier","responsible":""},{"date":"2025-12-15","content":"Jungschargebetsstunde","responsible":""},{"date":"2025-12-22","content":"- Ferien -","responsible":""},{"date":"2025-12-29","content":"- Ferien -","responsible":""},{"date":"2026-01-05","content":"Gebetswoche","responsible":""},{"date":"2026-01-12","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-01-19","content":"Thema: Frucht des Geistes","responsible":"Stephan"},{"date":"2026-01-26","content":"Thema: Mobbing","responsible":"Matze Isaak"},{"date":"2026-02-02","content":"Zeugnisse + Test zu Thema \"Mobbing\" Thema: Der breite und der schmale Weg","responsible":"Julien"},{"date":"2026-02-09","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-02-16","content":"Ausflug Megges","responsible":""},{"date":"2026-02-23","content":"Thema: Medien","responsible":"Stephan"},{"date":"2026-03-02","content":"Vorbereitung für Besuch im Altersheim Homburg + Thema: Die Zunge","responsible":"Samuel"},{"date":"2026-03-09","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-03-16","content":"Einteilung für Vortrag am 12.04.26 + Thema: Schätze, was du hast","responsible":"Julien"},{"date":"2026-03-23","content":"Probe für Vortrag am 12.04.26","responsible":""},{"date":"2026-03-30","content":"Wiese","responsible":""},{"date":"2026-04-06","content":"- Passahmontag -","responsible":""},{"date":"2026-04-12","content":"Vortrag im Gottesdienst","responsible":""},{"date":"2026-04-13","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-04-20","content":"Thema: Und die anderen Religionen","responsible":"Stephan"},{"date":"2026-04-27","content":"Thema: Endzeit","responsible":"Paul Domanski"},{"date":"2026-05-01","content":"Fahrradtour / Wiese","responsible":""},{"date":"2026-05-04","content":"Alten-/Krankenbesuch (Valentina Wiens)","responsible":""},{"date":"2026-05-11","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-05-18","content":"Thema: Jona / Missionsbefehl","responsible":"Julien"},{"date":"2026-05-25","content":"- Pfingstmontag -","responsible":""},{"date":"2026-06-01","content":"Thema: Haus auf Sand oder Felsen bauen","responsible":"Samuel"},{"date":"2026-06-08","content":"Thema: Bekehrung","responsible":"Keven Akulenko"},{"date":"2026-06-15","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-06-22","content":"Jahresabschluss, Kaffee&Kuchen, Interne Fragen, Besprechung Ausflüge","responsible":""},{"date":"2026-06-26","content":"Ausflug","responsible":""},{"date":"2026-06-29","content":"- Sommerferien -","responsible":""},{"date":"2026-07-06","content":"- Sommerferien -","responsible":""},{"date":"2026-07-13","content":"- Sommerferien -","responsible":""},{"date":"2026-07-20","content":"- Sommerferien -","responsible":""},{"date":"2026-07-27","content":"- Sommerferien -","responsible":""},{"date":"2026-08-03","content":"- Sommerferien -","responsible":""},{"date":"2026-08-10","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-08-17","content":"Speisesaal + Wiese","responsible":""},{"date":"2026-08-24","content":"Thema: Gebt dem Teufel keinen Raum","responsible":"Samuel"},{"date":"2026-08-29","content":"Fahrradtour / Wiese","responsible":""},{"date":"2026-08-31","content":"Thema: Bin ich ein Gefäß?","responsible":"Julien"},{"date":"2026-09-07","content":"Thema: Schmuck","responsible":"Stephan"},{"date":"2026-09-14","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-09-21","content":"- Ausfall -","responsible":""},{"date":"2026-09-27","content":"Gemeinsame Jungscharstunde mit allen. Thema: Äthiopien","responsible":"Justin Henkel"},{"date":"2026-10-05","content":"Alten- und Krankenbesuch (Schwester Lena Schäfer)","responsible":""},{"date":"2026-10-12","content":"Jungschargebetsstunde","responsible":""},{"date":"2026-10-19","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 1: Vorwort + Josef","responsible":"Stephan"},{"date":"2026-10-26","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 1: Fortsetzung + Reformationstag - Halloween","responsible":"Stephan + Samuel"},{"date":"2026-11-02","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 2: Knechtschaft - 10. Plage","responsible":"Julien"},{"date":"2026-11-09","content":"Aktion / Megges / Ausflug?","responsible":""},{"date":"2026-11-16","content":"Jungschargebetsstunde 2011 & 2012","responsible":""},{"date":"2026-11-23","content":"Vorbereitung  / Einteilung Weihnachtsfeier - Eventuell kleines Thema: (Bildervergleiche Gemeinde)","responsible":"Stephan"},{"date":"2026-11-30","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 3: Durchquerung des Roten Meeres","responsible":"Samuel"},{"date":"2026-12-07","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 4: Wüste 1/2","responsible":"Julien"},{"date":"2026-12-14","content":"","responsible":""},{"date":"2026-12-21","content":"","responsible":""},{"date":"2026-12-28","content":"- Ferien -","responsible":""},{"date":"2027-01-04","content":"","responsible":""},{"date":"2027-01-11","content":"Themenreihe: Auszug aus Ägypten. Abschnitt 5: Wüste 2/2","responsible":"Stephan"},{"date":"2027-01-18","content":"","responsible":""},{"date":"2027-01-25","content":"Thema: Fasching - und die Feiertage des Herrn","responsible":""},{"date":"2027-02-01","content":"","responsible":""},{"date":"2027-02-08","content":"","responsible":""},{"date":"2027-02-15","content":"","responsible":""},{"date":"2027-02-22","content":"","responsible":""},{"date":"2027-03-01","content":"","responsible":""},{"date":"2027-03-08","content":"","responsible":""},{"date":"2027-03-15","content":"","responsible":""},{"date":"2027-03-22","content":"","responsible":""},{"date":"2027-03-29","content":"- Passahmontag -","responsible":""},{"date":"2027-04-05","content":"","responsible":""},{"date":"2027-04-12","content":"","responsible":""},{"date":"2027-04-19","content":"","responsible":""},{"date":"2027-04-26","content":"","responsible":""},{"date":"2027-05-03","content":"","responsible":""},{"date":"2027-05-10","content":"","responsible":""},{"date":"2027-05-17","content":"- Pfingstmontag -","responsible":""},{"date":"2027-05-24","content":"","responsible":""},{"date":"2027-05-31","content":"","responsible":""},{"date":"2027-06-07","content":"","responsible":""},{"date":"2027-06-14","content":"","responsible":""},{"date":"2027-06-21","content":"","responsible":""},{"date":"2027-06-28","content":"- Sommerferien -","responsible":""},{"date":"2027-07-05","content":"- Sommerferien -","responsible":""},{"date":"2027-07-12","content":"- Sommerferien -","responsible":""},{"date":"2027-07-19","content":"- Sommerferien -","responsible":""},{"date":"2027-07-26","content":"- Sommerferien -","responsible":""},{"date":"2027-08-02","content":"- Sommerferien -","responsible":""},{"date":"2027-08-09","content":"","responsible":""},{"date":"2027-08-16","content":"","responsible":""},{"date":"2027-08-23","content":"","responsible":""},{"date":"2027-08-30","content":"","responsible":""},{"date":"2027-09-06","content":"","responsible":""},{"date":"2027-09-13","content":"","responsible":""},{"date":"2027-09-20","content":"","responsible":""},{"date":"2027-09-27","content":"","responsible":""},{"date":"2027-10-04","content":"","responsible":""},{"date":"2027-10-11","content":"","responsible":""},{"date":"2027-10-18","content":"","responsible":""},{"date":"2027-10-25","content":"","responsible":""},{"date":"2027-11-01","content":"","responsible":""},{"date":"2027-11-08","content":"Jungschargebetsstunde","responsible":""},{"date":"2027-11-15","content":"","responsible":""},{"date":"2027-11-22","content":"","responsible":""},{"date":"2027-11-29","content":"","responsible":""},{"date":"2027-12-06","content":"","responsible":""},{"date":"2027-12-13","content":"","responsible":""},{"date":"2027-12-20","content":"","responsible":""},{"date":"2027-12-27","content":"","responsible":""},{"date":"2028-01-03","content":"","responsible":""},{"date":"2028-01-10","content":"","responsible":""},{"date":"2028-01-17","content":"","responsible":""},{"date":"2028-01-24","content":"","responsible":""},{"date":"2028-01-31","content":"","responsible":""},{"date":"2028-02-07","content":"","responsible":""},{"date":"2028-02-14","content":"","responsible":""},{"date":"2028-02-21","content":"","responsible":""},{"date":"2028-02-28","content":"","responsible":""},{"date":"2028-03-06","content":"","responsible":""},{"date":"2028-03-13","content":"","responsible":""},{"date":"2028-03-20","content":"","responsible":""},{"date":"2028-03-27","content":"","responsible":""},{"date":"2028-04-03","content":"","responsible":""},{"date":"2028-04-10","content":"","responsible":""},{"date":"2028-04-17","content":"","responsible":""},{"date":"2028-04-24","content":"","responsible":""},{"date":"2028-05-01","content":"","responsible":""},{"date":"2028-05-08","content":"","responsible":""},{"date":"2028-05-15","content":"","responsible":""},{"date":"2028-05-22","content":"","responsible":""}];
 
 const preacherRosterSeed = ["Akulenko Mike","Biegler Calvin","Fast Tobias","Kliwer Fynn","Marchuk Roman","Marchuk Vitali","Negura Janick","Schefer Jamian","Shyrai Arsen","Vogel Daniel","Wall Nick"];
-const preacherSeed = {"2026-08-31":{askedName:"Marchuk Vitali",preached:true},"2026-09-07":{askedName:"Marchuk Roman",preached:true},"2026-10-05":{askedName:"Fast Tobias",preached:true},"2026-10-19":{askedName:"Vogel Daniel",preached:true}};
+const preacherSeed = {"2026-08-31":{"askedName":"Marchuk Vitali","preached":true},"2026-09-07":{"askedName":"Marchuk Roman","preached":true},"2026-10-05":{"askedName":"Fast Tobias","preached":true},"2026-10-19":{"askedName":"Vogel Daniel","preached":false},"2026-10-12":{"askedName":"Allgemeine Gebetstunde","preached":false},"2026-10-26":{"askedName":"","preached":false},"2026-11-02":{"askedName":"","preached":false}};
 
-const attendanceSeed = {
-  "2026-08-10":[1,6,7,8,9,10,12,14,16,17,18,20,26,27,28,29],
-  "2026-08-17":[1,2,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,23,27,28,29,30],
-  "2026-08-24":[1,3,4,5,6,7,8,9,10,11,12,14,16,17,18,19,20,21,22,23,24,26,27,28,29,30],
-  "2026-08-29":[1,2,4,5,6,7,9,10,11,12,16,17,18,19,20,22,23,27,28,29,30],
-  "2026-08-31":[1,2,3,4,6,7,8,9,10,11,12,13,14,16,17,19,20,21,23,26,27,28,29],
-  "2026-09-07":[21],
-  "2026-09-14":[1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,23,25,26,27,28],
-  "2026-09-27":[1,2,3,4,7,8,9,10,12,13,14,16,18,22,24,26,28,29,30],
-  "2026-10-05":[1,2,3,7,8,9,10,11,14,16,17,22,24,26,27,28,29,30],
-  "2026-10-12":[1,3,6,7,8,9,10,11,13,14,16,17,20,23,25,26,27,28]
-};
+const attendanceSeed = {"2026-08-10":[1,6,7,8,9,10,12,14,16,17,18,20,26,27,28,29],"2026-08-17":[1,2,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,23,27,28,29,30],"2026-08-24":[1,3,4,5,6,7,8,9,10,11,12,14,16,17,18,19,20,21,22,23,24,26,27,28,29,30],"2026-08-29":[1,2,4,5,6,7,9,10,11,12,16,17,18,19,20,22,23,27,28,29,30],"2026-08-31":[1,2,3,4,6,7,8,9,10,11,12,13,14,16,17,19,20,21,23,26,27,28,29],"2026-09-07":[21,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,19,20,22,23,26,27,28,29,30],"2026-09-14":[1,2,3,4,6,7,8,9,10,12,13,14,15,16,17,23,25,26,27,28],"2026-09-27":[1,2,3,4,7,8,9,10,12,13,14,16,18,22,24,26,28,29,30],"2026-10-05":[1,2,3,7,8,9,10,11,14,16,17,22,24,26,27,28,29,30],"2026-10-12":[1,3,6,7,8,9,10,11,13,14,16,17,20,23,25,26,27,28],"2026-10-19":[4,6,7,8,9,10,11,12,14,15,16,17,18,19,20,21,22,23,24,26,27,28,29,30,2,1],"2026-10-26":[],"2024-09-16":[1,2,3]};
+const nextEventNotesSeed = {"2026-10-26":"- Fragenbox\n- Termin Abschlussfahrt","2026-10-19":""};
+const nextEventNoteDoneSeed = {"2026-10-26":false,"2026-11-02":false,"2026-10-19":true,"2026-10-12":true};
+const homeNoteOpenSeed = false;
+const eventNotesOpenSeed = {"2026-11-02":false,"2026-10-19":false};
 
 const blank = {first:"",last:"",birthday:"",hg:"",v:"",hj1:"",hj2:"",duty:"",instrument:"",joinDate:TODAY};
 const fmt = date => new Intl.DateTimeFormat("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"}).format(new Date(`${date}T12:00:00Z`));
@@ -887,10 +314,10 @@ export default function App(){
   const [eventDraft,setEventDraft]=useState({date:"",content:"",responsible:""});
   const [photo,setPhoto]=useState(() => readStored(STORAGE_KEYS.photo, ""));
   const [leaderBirthdays,setLeaderBirthdays]=useState(() => readStored(STORAGE_KEYS.leaderBirthdays, leaderBirthdaySeed));
-  const [nextEventNotes,setNextEventNotes]=useState(() => readStored(STORAGE_KEYS.nextEventNotes, {}));
-  const [nextEventNoteDone,setNextEventNoteDone]=useState(() => readStored(STORAGE_KEYS.nextEventNoteDone, {}));
-  const [homeNoteOpen,setHomeNoteOpen]=useState(() => readStored(STORAGE_KEYS.homeNoteOpen, false));
-  const [eventNotesOpen,setEventNotesOpen]=useState(() => readStored(STORAGE_KEYS.eventNotesOpen, {}));
+  const [nextEventNotes,setNextEventNotes]=useState(() => readStored(STORAGE_KEYS.nextEventNotes, nextEventNotesSeed));
+  const [nextEventNoteDone,setNextEventNoteDone]=useState(() => readStored(STORAGE_KEYS.nextEventNoteDone, nextEventNoteDoneSeed));
+  const [homeNoteOpen,setHomeNoteOpen]=useState(() => readStored(STORAGE_KEYS.homeNoteOpen, homeNoteOpenSeed));
+  const [eventNotesOpen,setEventNotesOpen]=useState(() => readStored(STORAGE_KEYS.eventNotesOpen, eventNotesOpenSeed));
   const [showBirthdayList,setShowBirthdayList]=useState(false);
     const [showPreacherOverview,setShowPreacherOverview]=useState(false);
     const [showPreacherManagement,setShowPreacherManagement]=useState(false);
@@ -904,9 +331,97 @@ export default function App(){
     const [showLowAttendance,setShowLowAttendance]=useState(false);
   const [editingPersonId,setEditingPersonId]=useState(null);
   const [reportScope,setReportScope]=useState("window");
-  const [dataUpdatedAt,setDataUpdatedAt]=useState(() => readStored(STORAGE_KEYS.dataUpdatedAt, null));
-  const [syncStatus]=useState("prepared");
-  const dataStandText=dataUpdatedAt?new Date(dataUpdatedAt).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"Noch kein gespeicherter Datenstand";
+  const [cloudReady,setCloudReady]=useState(false);
+  const [cloudStatus,setCloudStatus]=useState("Firebase wird verbunden …");
+  const cloudWriteTimers=useRef({});
+
+  const queueCloudWrite=(key,value)=>{
+    if(!cloudReady) return;
+    window.clearTimeout(cloudWriteTimers.current[key]);
+    cloudWriteTimers.current[key]=window.setTimeout(async()=>{
+      try{
+        await setDoc(firestoreStateRef(key),{value,updatedAt:serverTimestamp()},{merge:true});
+        setCloudStatus(navigator.onLine?"Mit Firebase synchronisiert":"Offline gespeichert · Synchronisierung ausstehend");
+      }catch(error){
+        console.error(`Firebase-Speicherfehler (${key}):`,error);
+        setCloudStatus("Firebase-Synchronisierung fehlgeschlagen");
+      }
+    },450);
+  };
+
+  useEffect(()=>{
+    let active=true;
+    const unsubscribers=[];
+    const states=[
+      ["people",people,setPeople],
+      ["attendance",attendance,setAttendance],
+      ["confirmedAttendance",confirmedAttendance,setConfirmedAttendance],
+      ["schedule",schedule,setSchedule],
+      ["preachers",preachers,setPreachers],
+      ["preacherRoster",preacherRoster,setPreacherRoster],
+      ["leaderBirthdays",leaderBirthdays,setLeaderBirthdays],
+      ["nextEventNotes",nextEventNotes,setNextEventNotes],
+      ["nextEventNoteDone",nextEventNoteDone,setNextEventNoteDone],
+      ["homeNoteOpen",homeNoteOpen,setHomeNoteOpen],
+      ["eventNotesOpen",eventNotesOpen,setEventNotesOpen]
+    ];
+
+    const applyRemote=(setter,value)=>{
+      setter(current=>JSON.stringify(current)===JSON.stringify(value)?current:value);
+    };
+
+    const connect=async()=>{
+      try{
+        for(const [key,localValue,setter] of states){
+          const reference=firestoreStateRef(key);
+          const snapshot=await getDoc(reference);
+          if(snapshot.exists()){
+            applyRemote(setter,snapshot.data().value);
+          }else{
+            await setDoc(reference,{value:localValue,updatedAt:serverTimestamp(),migratedAt:serverTimestamp()});
+          }
+          const unsubscribe=onSnapshot(reference,{includeMetadataChanges:true},nextSnapshot=>{
+            if(!active||!nextSnapshot.exists()) return;
+            const remoteValue=nextSnapshot.data().value;
+            applyRemote(setter,remoteValue);
+            setCloudStatus(nextSnapshot.metadata.hasPendingWrites
+              ?"Offline gespeichert · Synchronisierung ausstehend"
+              :"Mit Firebase synchronisiert");
+          },error=>{
+            console.error(`Firebase-Lesefehler (${key}):`,error);
+            if(active) setCloudStatus("Firebase-Verbindung fehlgeschlagen");
+          });
+          unsubscribers.push(unsubscribe);
+        }
+        if(active){
+          setCloudReady(true);
+          setCloudStatus(navigator.onLine?"Mit Firebase synchronisiert":"Offline · lokale Firebase-Daten aktiv");
+        }
+      }catch(error){
+        console.error("Firebase-Initialisierung fehlgeschlagen:",error);
+        if(active) setCloudStatus("Lokaler Modus · Firebase nicht erreichbar");
+      }
+    };
+
+    connect();
+    return()=>{
+      active=false;
+      unsubscribers.forEach(unsubscribe=>unsubscribe());
+      Object.values(cloudWriteTimers.current).forEach(timer=>window.clearTimeout(timer));
+    };
+  },[]);
+
+  useEffect(()=>{queueCloudWrite("people",people);},[people,cloudReady]);
+  useEffect(()=>{queueCloudWrite("attendance",attendance);},[attendance,cloudReady]);
+  useEffect(()=>{queueCloudWrite("confirmedAttendance",confirmedAttendance);},[confirmedAttendance,cloudReady]);
+  useEffect(()=>{queueCloudWrite("schedule",schedule);},[schedule,cloudReady]);
+  useEffect(()=>{queueCloudWrite("preachers",preachers);},[preachers,cloudReady]);
+  useEffect(()=>{queueCloudWrite("preacherRoster",preacherRoster);},[preacherRoster,cloudReady]);
+  useEffect(()=>{queueCloudWrite("leaderBirthdays",leaderBirthdays);},[leaderBirthdays,cloudReady]);
+  useEffect(()=>{queueCloudWrite("nextEventNotes",nextEventNotes);},[nextEventNotes,cloudReady]);
+  useEffect(()=>{queueCloudWrite("nextEventNoteDone",nextEventNoteDone);},[nextEventNoteDone,cloudReady]);
+  useEffect(()=>{queueCloudWrite("homeNoteOpen",homeNoteOpen);},[homeNoteOpen,cloudReady]);
+  useEffect(()=>{queueCloudWrite("eventNotesOpen",eventNotesOpen);},[eventNotesOpen,cloudReady]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.people, JSON.stringify(people));
@@ -929,11 +444,6 @@ export default function App(){
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.nextEventNoteDone, JSON.stringify(nextEventNoteDone)); }, [nextEventNoteDone]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.homeNoteOpen, JSON.stringify(homeNoteOpen)); }, [homeNoteOpen]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.eventNotesOpen, JSON.stringify(eventNotesOpen)); }, [eventNotesOpen]);
-  useEffect(() => {
-    if(!dataUpdatedAt) return;
-    localStorage.setItem(STORAGE_KEYS.dataUpdatedAt,JSON.stringify(dataUpdatedAt));
-  },[dataUpdatedAt]);
-  const markDataChanged=()=>setDataUpdatedAt(new Date().toISOString());
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.photo, JSON.stringify(photo));
@@ -1047,7 +557,6 @@ export default function App(){
     setConfirmedAttendance(nextConfirmed);
     localStorage.setItem(STORAGE_KEYS.attendance,JSON.stringify(nextAttendance));
     localStorage.setItem(STORAGE_KEYS.confirmedAttendance,JSON.stringify(nextConfirmed));
-    markDataChanged();
     setAttendanceSavedNotice(true);
     window.setTimeout(()=>setAttendanceSavedNotice(false),2500);
   };
@@ -1070,22 +579,21 @@ export default function App(){
     pendingPastAttendance.current=null;
     setShowPastAttendanceConfirm(false);
   };
-  const toggleFlag=(id,key)=>{markDataChanged();setPeople(old=>old.map(p=>p.id===id?{...p,[key]:p[key]?"":"X"}:p));};
-  const updatePerson=(id,key,value)=>{markDataChanged();setPeople(old=>old.map(p=>p.id===id?{...p,[key]:value}:p));};
-  const saveNew=()=>{markDataChanged();setPeople(old=>sortPeople([...old,{...draft,id:Math.max(0,...old.map(p=>p.id))+1}]));setDraft(blank);setAdding(false);};
-  const deletePerson=person=>{if(!window.confirm(`${person.first} ${person.last} wirklich löschen? Die Person wird auch aus allen Anwesenheitslisten entfernt.`))return;markDataChanged();setPeople(old=>old.filter(p=>p.id!==person.id));setAttendance(old=>Object.fromEntries(Object.entries(old).map(([eventDate,ids])=>[eventDate,ids.filter(id=>id!==person.id)])));};
-  const uploadPhoto=e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{markDataChanged();setPhoto(String(reader.result));};reader.readAsDataURL(file);};
-  const resetPhoto=()=>{markDataChanged();setPhoto("");};
+  const toggleFlag=(id,key)=>setPeople(old=>old.map(p=>p.id===id?{...p,[key]:p[key]?"":"X"}:p));
+  const updatePerson=(id,key,value)=>setPeople(old=>old.map(p=>p.id===id?{...p,[key]:value}:p));
+  const saveNew=()=>{setPeople(old=>sortPeople([...old,{...draft,id:Math.max(0,...old.map(p=>p.id))+1}]));setDraft(blank);setAdding(false);};
+  const deletePerson=person=>{if(!window.confirm(`${person.first} ${person.last} wirklich löschen? Die Person wird auch aus allen Anwesenheitslisten entfernt.`))return;setPeople(old=>old.filter(p=>p.id!==person.id));setAttendance(old=>Object.fromEntries(Object.entries(old).map(([eventDate,ids])=>[eventDate,ids.filter(id=>id!==person.id)])));};
+  const uploadPhoto=e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>setPhoto(String(reader.result));reader.readAsDataURL(file);};
+  const resetPhoto=()=>{setPhoto("");};
   const scheduleFor = eventDate => schedule.find(item=>item.date===eventDate) || {date:eventDate,content:"",responsible:""};
-  const updateSchedule = (eventDate,key,value) => {markDataChanged();setSchedule(old => {
+  const updateSchedule = (eventDate,key,value) => setSchedule(old => {
     const exists=old.some(item=>item.date===eventDate);
     const next=exists
       ? old.map(item=>item.date===eventDate?{...item,[key]:value}:item)
       : [...old,{date:eventDate,content:"",responsible:"",[key]:value}];
     return [...next].sort((a,b)=>a.date.localeCompare(b.date));
-  });};
+  });
   const saveNewEvent = () => {
-    markDataChanged();
     const eventDate=eventDraft.date;
     if(!eventDate) return;
     if(events.some(event=>event.date===eventDate)){
@@ -1100,8 +608,6 @@ export default function App(){
   };
   const deleteEvent = eventDate => {
     if(!window.confirm(`${fmt(eventDate)} wirklich löschen? Der Termin und seine Anwesenheitsdaten werden entfernt.`)) return;
-    if(eventDate<currentDate&&!window.confirm("Sicherheitsabfrage: Es handelt sich um einen vergangenen Termin. Wirklich endgültig löschen?")) return;
-    markDataChanged();
     const remainingEvents=events.filter(event=>event.date!==eventDate);
     setSchedule(old=>old.filter(item=>item.date!==eventDate));
     setAttendance(old=>Object.fromEntries(Object.entries(old).filter(([storedDate])=>storedDate!==eventDate)));
@@ -1137,9 +643,9 @@ export default function App(){
       if(deleteEvent(eventDate)!==false) setSwipeOffsets(old=>{const next={...old};delete next[eventDate];return next;});
     }else setSwipeOffsets(old=>({...old,[eventDate]:0}));
   };
-  const updatePreacherAssignment=(eventDate,changes)=>{markDataChanged();setPreachers(old=>({...old,[eventDate]:{askedName:"",preached:false,...old[eventDate],...changes}}));};
-  const addPreacher=()=>{const name=newPreacherName.trim();if(!name)return;markDataChanged();if(preacherRoster.some(item=>item.toLowerCase()===name.toLowerCase())){window.alert("Diese Person ist bereits in der Predigerliste.");return;}setPreacherRoster(old=>[...old,name].sort((a,b)=>a.localeCompare(b,"de")));setNewPreacherName("");};
-  const removePreacher=name=>{if(!window.confirm(`${name} wirklich aus der Predigerliste entfernen? Bereits gespeicherte Termine bleiben erhalten.`))return;markDataChanged();setPreacherRoster(old=>old.filter(item=>item!==name));};
+  const updatePreacherAssignment=(eventDate,changes)=>setPreachers(old=>({...old,[eventDate]:{askedName:"",preached:false,...old[eventDate],...changes}}));
+  const addPreacher=()=>{const name=newPreacherName.trim();if(!name)return;if(preacherRoster.some(item=>item.toLowerCase()===name.toLowerCase())){window.alert("Diese Person ist bereits in der Predigerliste.");return;}setPreacherRoster(old=>[...old,name].sort((a,b)=>a.localeCompare(b,"de")));setNewPreacherName("");};
+  const removePreacher=name=>{if(!window.confirm(`${name} wirklich aus der Predigerliste entfernen? Bereits gespeicherte Termine bleiben erhalten.`))return;setPreacherRoster(old=>old.filter(item=>item!==name));};
   const isVisitContent = content => /alten[- ]?\/?\s*und\s*krankenbesuch|alten-\s*und\s*krankenbesuch|altenbesuch|krankenbesuch/i.test(content);
   const extractVisited = content => {
     const bracketMatch=content.match(/\(([^)]+)\)/);
@@ -1183,36 +689,6 @@ export default function App(){
       target?.scrollIntoView({behavior:"smooth",block:"start"});
     },80);
   };
-  const buildAppData=()=>({
-    app:"Jungschar 2012",
-    formatVersion:2,
-    appVersion:APP_VERSION,
-    updatedAt:dataUpdatedAt||new Date().toISOString(),
-    people,
-    attendance,
-    confirmedAttendance,
-    schedule,
-    preachers,
-    preacherRoster,
-    leaderBirthdays,
-    nextEventNotes,
-    nextEventNoteDone,
-    photo
-  });
-  const applyAppData=data=>{
-    if(!data||data.app!=="Jungschar 2012") throw new Error("Ungültige App-Daten");
-    if(Array.isArray(data.people)) setPeople(sortPeople(data.people));
-    if(data.attendance&&typeof data.attendance==="object") setAttendance(data.attendance);
-    if(Array.isArray(data.confirmedAttendance)) setConfirmedAttendance(data.confirmedAttendance);
-    if(Array.isArray(data.schedule)) setSchedule([...data.schedule].sort((a,b)=>a.date.localeCompare(b.date)));
-    if(data.preachers&&typeof data.preachers==="object") setPreachers(data.preachers);
-    if(Array.isArray(data.preacherRoster)) setPreacherRoster(data.preacherRoster);
-    if(data.leaderBirthdays&&typeof data.leaderBirthdays==="object") setLeaderBirthdays(data.leaderBirthdays);
-    if(data.nextEventNotes&&typeof data.nextEventNotes==="object") setNextEventNotes(data.nextEventNotes);
-    if(data.nextEventNoteDone&&typeof data.nextEventNoteDone==="object") setNextEventNoteDone(data.nextEventNoteDone);
-    if(typeof data.photo==="string") setPhoto(data.photo);
-    setDataUpdatedAt(data.updatedAt||new Date().toISOString());
-  };
   const addDays=(value,days)=>{const d=new Date(`${value}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
   const schoolYearBounds=()=>{const [startShort]=currentSchoolYear.split("/");const century=String(new Date(`${currentDate}T12:00:00Z`).getUTCFullYear()).slice(0,2);const startYear=Number(`${century}${startShort}`);return {start:`${startYear}-08-01`,end:`${startYear+1}-07-31`};};
   const reportEvents=()=>{
@@ -1233,7 +709,12 @@ export default function App(){
   const exportExcelReport=()=>{const blob=new Blob([reportHtml()],{type:"application/vnd.ms-excel;charset=utf-8"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=`Jungschar-Bericht-${currentDate}.xls`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   const exportPdfReport=()=>{const win=window.open("","_blank");if(!win){window.alert("Bitte Pop-ups für diese Seite erlauben.");return;}win.document.open();win.document.write(reportHtml());win.document.close();win.onload=()=>{win.focus();win.print();};};
   const exportBackup=()=>{
-    const backup=buildAppData();
+    const storage={};
+    for(let index=0;index<localStorage.length;index+=1){
+      const key=localStorage.key(index);
+      if(key?.startsWith("jungschar.")) storage[key]=localStorage.getItem(key);
+    }
+    const backup={app:"Jungschar 2012",formatVersion:1,exportedAt:new Date().toISOString(),storage};
     const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const link=document.createElement("a");
@@ -1252,20 +733,14 @@ export default function App(){
     reader.onload=()=>{
       try{
         const backup=JSON.parse(String(reader.result));
-        const backupDate=backup.updatedAt||backup.exportedAt;
-        const displayDate=backupDate?new Date(backupDate).toLocaleString("de-DE"):"unbekannten Zeitpunkt";
-        if(!window.confirm(`Backup vom ${displayDate} wiederherstellen? Die aktuellen lokalen App-Daten werden ersetzt.`)) return;
-        if(backup.formatVersion===2){
-          applyAppData(backup);
-          window.alert("Backup wurde wiederhergestellt.");
-          return;
-        }
         if(backup?.app!=="Jungschar 2012"||!backup.storage||typeof backup.storage!=="object") throw new Error("Ungültiges Backup");
         const keys=Object.keys(backup.storage).filter(key=>key.startsWith("jungschar."));
         if(!keys.length) throw new Error("Keine App-Daten gefunden");
+        const backupDate=backup.exportedAt?new Date(backup.exportedAt).toLocaleString("de-DE"):"unbekannten Zeitpunkt";
+        if(!window.confirm(`Backup vom ${backupDate} wiederherstellen? Die aktuellen lokalen App-Daten werden ersetzt.`)) return;
         Object.keys(localStorage).filter(key=>key.startsWith("jungschar.")).forEach(key=>localStorage.removeItem(key));
         keys.forEach(key=>{if(typeof backup.storage[key]==="string") localStorage.setItem(key,backup.storage[key]);});
-        window.alert("Älteres Backup wurde wiederhergestellt. Die App wird jetzt neu geladen.");
+        window.alert("Backup wurde wiederhergestellt. Die App wird jetzt neu geladen.");
         window.location.reload();
       }catch{
         window.alert("Diese Datei ist kein gültiges Jungschar-App-Backup.");
@@ -1288,10 +763,10 @@ export default function App(){
       }
     `}</style>
     <main className="mx-auto max-w-5xl space-y-4 p-4">
-      {view!=="home"&&<header><p className="text-xs font-black uppercase tracking-[.2em] text-blue-600">Jungschar-App</p><h1 className="text-3xl font-black">Jungschar 2012</h1><p className="text-sm text-slate-500">Version {APP_VERSION} · {syncStatus==="synced"?"synchronisiert":"Cloud vorbereitet · lokal gespeichert"} · {dataStandText}</p></header>}
+      <div className={`rounded-2xl border px-3 py-2 text-center text-xs font-bold ${cloudStatus.includes("synchronisiert")?"border-emerald-200 bg-emerald-50 text-emerald-700":cloudStatus.includes("fehlgeschlagen")?"border-red-200 bg-red-50 text-red-700":"border-amber-200 bg-amber-50 text-amber-800"}`}>{cloudStatus}</div>
+      {view!=="home"&&<header><p className="text-xs font-black uppercase tracking-[.2em] text-blue-600">Jungschar-App</p><h1 className="text-3xl font-black">Jungschar 2012</h1><p className="text-sm text-slate-500">Datenstand bis 15.10.2026</p></header>}
 
       {view==="home"&&<>
-        <section className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cloud-V2</p><p className="truncate text-xs font-bold text-slate-600">Version {APP_VERSION} · Stand {APP_BUILD_DATE}</p></div><div className="shrink-0 text-right"><div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-[10px] font-black text-amber-800"><span className="h-2 w-2 rounded-full bg-amber-500"/>{syncStatus==="synced"?"Synchronisiert":"Cloud vorbereitet · lokal"}</div><p className="mt-1 text-[9px] font-bold text-slate-400">Daten: {dataStandText}</p></div></section>
         <section className="relative h-[430px] overflow-hidden rounded-[34px] bg-slate-900 shadow-xl sm:h-[520px]">
           <img src={photo||defaultGroupPhoto} alt="Gruppenbild der Jungschar 2012" className="h-full w-full object-cover object-center"/>
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-transparent to-slate-950/90"/>
